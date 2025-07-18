@@ -324,23 +324,78 @@
 
       <div id="nexus" class="tab-content">
         <h2>Nexus Device Management</h2>
-        <div id="NexusID-list"></div>
-        <div style="margin-top: 10px;">
-          <label for="NexusID-action-select">Set status for selected devices:</label>
-          <select id="NexusID-action-select">
-            <option value="">-- Select Action --</option>
-            <option value="Broken">Broken</option>
-            <option value="Missing">Missing</option>
-            <option value="Stolen">Stolen</option>
-          </select>
-          <button onclick="applyDeviceStatusUpdate()">Apply</button>
-          <div id="nexus-loading" style="display: none;">
-            <p>Loading data...</p>
-            <img src="https://i.gifer.com/ZZ5H.gif" width="40" alt="Loading spinner" />
+        <div style="margin-bottom: 20px; display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+          <div>
+            <label for="device-search" style="color: white; margin-right: 5px;">Search:</label>
+            <input type="text" id="device-search" placeholder="Search devices..." 
+                   style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
           </div>
-          <div id="nexus-content" style="display: none; height: 400px; overflow: auto;" class="p-4 space-y-2">
-            <!-- Table will be injected here -->
+
+          <div>
+            <label for="status-filter" style="color: white; margin-right: 5px;">Filter by Status:</label>
+            <select id="status-filter" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+              <option value="">All Statuses</option>
+              <option value="Available">Available</option>
+              <option value="Checked Out">Checked Out</option>
+              <option value="Broken">Broken</option>
+              <option value="Missing">Missing</option>
+              <option value="Stolen">Stolen</option>
+              <option value="Never Used">Never Used</option>
+            </select>
           </div>
+
+          <div>
+            <button onclick="refreshNexusData()" style="padding: 5px 10px; border-radius: 4px; border: none; background: #007bff; color: white; cursor: pointer;">
+              <i class="fas fa-refresh"></i> Refresh
+            </button>
+          </div>
+        </div>
+
+        <!-- Device Count Display -->
+        <div style="margin-bottom: 15px; color: white;">
+          <span id="device-count">Total Devices: 0</span>
+          <span id="filtered-count" style="margin-left: 20px;"></span>
+        </div>
+
+        <!-- Bulk Actions -->
+        <div style="margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+          <h3 style="margin-top: 0; color: white;">Bulk Actions</h3>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <button onclick="selectAllVisible()" style="padding: 5px 10px; border-radius: 4px; border: none; background: #28a745; color: white; cursor: pointer;">
+              Select All Visible
+            </button>
+            <button onclick="clearSelection()" style="padding: 5px 10px; border-radius: 4px; border: none; background: #6c757d; color: white; cursor: pointer;">
+              Clear Selection
+            </button>
+            <select id="bulk-status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+              <option value="">-- Select Status --</option>
+              <option value="Available">Available</option>
+              <option value="Broken">Broken</option>
+              <option value="Missing">Missing</option>
+              <option value="Stolen">Stolen</option>
+            </select>
+            <button onclick="applyBulkStatusUpdate()" style="padding: 5px 10px; border-radius: 4px; border: none; background: #dc3545; color: white; cursor: pointer;">
+              Apply to Selected
+            </button>
+            <span id="selected-count" style="color: white; margin-left: 10px;">0 selected</span>
+          </div>
+        </div>
+
+        <!-- Loading and Content -->
+        <div id="nexus-loading" style="display: none; text-align: center; color: white;">
+          <p>Loading device data...</p>
+          <dotlottie-player 
+            class="SNBox"
+            src="https://lottie.host/89cc68c1-5cd6-4107-9f8e-12567f0b3308/EezRr6dO5o.lottie" 
+            background="transparent" 
+            speed="2" 
+            loop 
+            autoplay>
+          </dotlottie-player>
+        </div>
+
+        <div id="nexus-content" style="display: none;">
+          <!-- Table will be injected here -->
         </div>
       </div>
     </div>
@@ -364,7 +419,6 @@
         if (activeBtn) activeBtn.classList.add('active');
 
         if (tabId === 'nexus') {
-          createTable();
         }
       }
 
@@ -765,6 +819,9 @@
       //-▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢
 
       // Function to create the table inside the nexus tab
+      let nexusData = [];
+      let filteredData = [];
+
       function createTable() {
         // Show loading spinner
         document.getElementById('nexus-loading').style.display = 'block';
@@ -782,40 +839,302 @@
         document.getElementById('nexus-loading').style.display = 'none';
         document.getElementById('nexus-content').style.display = 'block';
 
+        nexusData = data;
+        filteredData = data.slice(); // Create a copy
+
+        renderTable();
+        updateDeviceCount();
+      }
+
+      function renderTable() {
         const contentDiv = document.getElementById('nexus-content');
 
-        if (!data || data.length === 0) {
-          contentDiv.innerHTML = '<p>No data available</p>';
+        if (!filteredData || filteredData.length <= 1) {
+          contentDiv.innerHTML = '<p style="color: white;">No devices found</p>';
           return;
         }
 
         // Create table HTML
-        let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+        let tableHTML = `
+          <div style="overflow-x: auto; max-height: 600px; border: 1px solid #ddd; border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; background: white;">
+              <thead>
+                <tr style="background: #f8f9fa; position: sticky; top: 0; z-index: 10;">
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 120px;">
+                    <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
+                    Device ID
+                  </th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">Status</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 120px;">Last User</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 140px;">Last Action</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">Department</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">Duration</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
 
-        // Add header row (assuming first row contains headers)
-        tableHTML += '<thead><tr>';
-        data[0].forEach(header => {
-          tableHTML += `<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; text-align: left;">${header}</th>`;
-        });
-        tableHTML += '<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Select</th>';
-        tableHTML += '</tr></thead>';
+        // Add data rows (skip header row)
+        for (let i = 1; i < filteredData.length; i++) {
+          const row = filteredData[i];
+          const deviceID = row[0];
+          const status = row[1];
+          const lastUser = row[2];
+          const lastAction = row[3];
+          const department = row[4];
+          const duration = row[5];
 
-        // Add data rows (skip first row since it's headers)
-        tableHTML += '<tbody>';
-        for (let i = 1; i < data.length; i++) {
-          tableHTML += '<tr>';
-          data[i].forEach(cell => {
-            tableHTML += `<td style="border: 1px solid #ddd; padding: 8px;">${cell || ''}</td>`;
-          });
-          // Add checkbox for selection
-          tableHTML += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
-                          <input type="checkbox" class="device-checkbox" data-row="${i}" />
-                        </td>`;
-          tableHTML += '</tr>';
+          // Color code based on status
+          let statusColor = '#28a745'; // Green for Available
+          if (status === 'Checked Out') statusColor = '#ffc107'; // Yellow
+          else if (status === 'Broken') statusColor = '#dc3545'; // Red
+          else if (status === 'Missing') statusColor = '#6f42c1'; // Purple
+          else if (status === 'Stolen') statusColor = '#fd7e14'; // Orange
+          else if (status === 'Never Used') statusColor = '#6c757d'; // Gray
+
+          tableHTML += `
+            <tr class="device-row" data-device-id="${deviceID}">
+              <td style="border: 1px solid #ddd; padding: 8px;">
+                <input type="checkbox" class="device-checkbox" value="${deviceID}" onchange="updateSelectedCount()">
+                <strong>${deviceID}</strong>
+              </td>
+              <td style="border: 1px solid #ddd; padding: 8px;">
+                <span style="padding: 3px 8px; border-radius: 12px; font-size: 12px; color: white; background: ${statusColor};">
+                  ${status}
+                </span>
+              </td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${lastUser}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${lastAction}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${department}</td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${duration}</td>
+              <td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
+                <button onclick="viewDeviceHistory('${deviceID}')" 
+                        style="padding: 3px 6px; border: none; background: #007bff; color: white; border-radius: 3px; cursor: pointer; font-size: 12px;">
+                  <i class="fas fa-history"></i>
+                </button>
+              </td>
+            </tr>
+          `;
         }
-        tableHTML += '</tbody></table>';
+
+        tableHTML += `
+              </tbody>
+            </table>
+          </div>
+        `;
 
         contentDiv.innerHTML = tableHTML;
+
+        // Set up event listeners for search and filter
+        setupSearchAndFilter();
+        updateSelectedCount();
+      }
+
+      function setupSearchAndFilter() {
+        const searchInput = document.getElementById('device-search');
+        const statusFilter = document.getElementById('status-filter');
+
+        searchInput.addEventListener('input', applyFilters);
+        statusFilter.addEventListener('change', applyFilters);
+      }
+
+      function applyFilters() {
+        const searchTerm = document.getElementById('device-search').value.toLowerCase();
+        const statusFilter = document.getElementById('status-filter').value;
+
+        const rows = document.querySelectorAll('.device-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+          const deviceID = row.dataset.deviceId.toLowerCase();
+          const status = row.querySelector('td:nth-child(2) span').textContent.trim();
+          const lastUser = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+
+          const matchesSearch = deviceID.includes(searchTerm) || lastUser.includes(searchTerm);
+          const matchesStatus = !statusFilter || status === statusFilter;
+
+          if (matchesSearch && matchesStatus) {
+            row.style.display = '';
+            visibleCount++;
+          } else {
+            row.style.display = 'none';
+          }
+        });
+
+        // Update filtered count
+        const filteredCountSpan = document.getElementById('filtered-count');
+        if (searchTerm || statusFilter) {
+          filteredCountSpan.textContent = `Showing: ${visibleCount}`;
+          filteredCountSpan.style.display = 'inline';
+        } else {
+          filteredCountSpan.style.display = 'none';
+        }
+      }
+
+      function updateDeviceCount() {
+        const totalDevices = nexusData.length - 1; // Subtract header row
+        document.getElementById('device-count').textContent = `Total Devices: ${totalDevices}`;
+      }
+
+      function updateSelectedCount() {
+        const checkedBoxes = document.querySelectorAll('.device-checkbox:checked');
+        const visibleChecked = Array.from(checkedBoxes).filter(cb => 
+          cb.closest('.device-row').style.display !== 'none'
+        );
+        document.getElementById('selected-count').textContent = `${visibleChecked.length} selected`;
+      }
+
+      function toggleSelectAll(checkbox) {
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.device-checkbox'))
+          .filter(cb => cb.closest('.device-row').style.display !== 'none');
+
+        visibleCheckboxes.forEach(cb => {
+          cb.checked = checkbox.checked;
+        });
+
+        updateSelectedCount();
+      }
+
+      function selectAllVisible() {
+        const visibleCheckboxes = Array.from(document.querySelectorAll('.device-checkbox'))
+          .filter(cb => cb.closest('.device-row').style.display !== 'none');
+
+        visibleCheckboxes.forEach(cb => {
+          cb.checked = true;
+        });
+
+        document.getElementById('select-all').checked = true;
+        updateSelectedCount();
+      }
+
+      function clearSelection() {
+        document.querySelectorAll('.device-checkbox').forEach(cb => {
+          cb.checked = false;
+        });
+        document.getElementById('select-all').checked = false;
+        updateSelectedCount();
+      }
+
+      function applyBulkStatusUpdate() {
+        const selectedStatus = document.getElementById('bulk-status-select').value;
+        const checkedBoxes = document.querySelectorAll('.device-checkbox:checked');
+
+        if (!selectedStatus) {
+          alert('Please select a status to apply.');
+          return;
+        }
+
+        if (checkedBoxes.length === 0) {
+          alert('Please select at least one device.');
+          return;
+        }
+
+        const deviceIDs = Array.from(checkedBoxes).map(cb => cb.value);
+
+        if (confirm(`Apply "${selectedStatus}" status to ${deviceIDs.length} device(s)?`)) {
+          // Show loading
+          document.getElementById('nexus-loading').style.display = 'block';
+          document.getElementById('nexus-content').style.display = 'none';
+
+          google.script.run
+            .withSuccessHandler((result) => {
+              if (result.success) {
+                alert(result.message);
+                refreshNexusData(); // Refresh the data
+              } else {
+                alert('Error: ' + result.message);
+                document.getElementById('nexus-loading').style.display = 'none';
+                document.getElementById('nexus-content').style.display = 'block';
+              }
+            })
+            .withFailureHandler((error) => {
+              alert('Error updating devices: ' + error.message);
+              document.getElementById('nexus-loading').style.display = 'none';
+              document.getElementById('nexus-content').style.display = 'block';
+            })
+            .updateDeviceStatus(deviceIDs, selectedStatus);
+        }
+      }
+
+      function refreshNexusData() {
+        createTable();
+      }
+
+      function viewDeviceHistory(deviceID) {
+        // Show loading in modal
+        const html = `
+          <h3>Device History: ${deviceID}</h3>
+          <div style="text-align: center;">
+            <p>Loading device history...</p>
+            <dotlottie-player 
+              class="SNBox"
+              src="https://lottie.host/89cc68c1-5cd6-4107-9f8e-12567f0b3308/EezRr6dO5o.lottie" 
+              background="transparent" 
+              speed="2" 
+              loop 
+              autoplay>
+            </dotlottie-player>
+          </div>
+        `;
+
+        Show_InterfaceBOX(html);
+
+        // Fetch device history
+        google.script.run
+          .withSuccessHandler((history) => {
+            let historyHTML = `
+              <h3>Device History: ${deviceID}</h3>
+              <div style="max-height: 400px; overflow-y: auto;">
+            `;
+
+            if (history.length === 0) {
+              historyHTML += '<p>No history found for this device.</p>';
+            } else {
+              historyHTML += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+              historyHTML += `
+                <thead>
+                  <tr style="background: #f8f9fa;">
+                    <th style="border: 1px solid #ddd; padding: 4px;">User</th>
+                    <th style="border: 1px solid #ddd; padding: 4px;">Department</th>
+                    <th style="border: 1px solid #ddd; padding: 4px;">Check Out</th>
+                    <th style="border: 1px solid #ddd; padding: 4px;">Check In</th>
+                    <th style="border: 1px solid #ddd; padding: 4px;">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+              `;
+
+              history.forEach(record => {
+                const outTime = record.outTimestamp ? 
+                  new Date(record.outTimestamp).toLocaleString() : '';
+                const inTime = record.inTimestamp ? 
+                  new Date(record.inTimestamp).toLocaleString() : '';
+
+                historyHTML += `
+                  <tr>
+                    <td style="border: 1px solid #ddd; padding: 4px;">${record.name}</td>
+                    <td style="border: 1px solid #ddd; padding: 4px;">${record.department}</td>
+                    <td style="border: 1px solid #ddd; padding: 4px;">${outTime}</td>
+                    <td style="border: 1px solid #ddd; padding: 4px;">${inTime}</td>
+                    <td style="border: 1px solid #ddd; padding: 4px;">${record.status}</td>
+                  </tr>
+                `;
+              });
+
+              historyHTML += '</tbody></table>';
+            }
+
+            historyHTML += '</div>';
+            Show_InterfaceBOX(historyHTML);
+          })
+          .withFailureHandler((error) => {
+            Show_InterfaceBOX(`
+              <h3>Device History: ${deviceID}</h3>
+              <p style="color: red;">Error loading device history: ${error.message}</p>
+            `);
+          })
+          .getDeviceDetails(deviceID);
       }
 
       function handleNexusError(error) {
@@ -824,33 +1143,11 @@
         document.getElementById('nexus-content').style.display = 'block';
 
         console.error('Error loading Nexus data:', error);
-        document.getElementById('nexus-content').innerHTML = '<p style="color: red;">Error loading data. Please try again.</p>';
+        document.getElementById('nexus-content').innerHTML = 
+          '<p style="color: red;">Error loading data. Please try again.</p>';
       }
 
-      // Function to handle the status update for selected devices
-      function applyDeviceStatusUpdate() {
-        const selectedAction = document.getElementById('NexusID-action-select').value;
-        const checkboxes = document.querySelectorAll('.device-checkbox:checked');
-
-        if (!selectedAction) {
-          alert('Please select an action first.');
-          return;
-        }
-
-        if (checkboxes.length === 0) {
-          alert('Please select at least one device.');
-          return;
-        }
-
-        const selectedRows = Array.from(checkboxes).map(cb => parseInt(cb.dataset.row));
-        console.log('Updating rows:', selectedRows, 'with status:', selectedAction);
-
-        // Here you can call another server-side function to update the sheet
-        // google.script.run.updateDeviceStatus(selectedRows, selectedAction);
-
-        alert(`Applied "${selectedAction}" status to ${selectedRows.length} device(s)`);
-      }
     </script>
-    <div id="version-info">v2.13.224</div>
+    <div id="version-info">v2.13.230</div>
   </body>
 </html>
