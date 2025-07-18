@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>GA1 Device Tracker</title>
+    <base target="_top">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <script src="https://unpkg.com/@dotlottie/player-component@2.7.12/dist/dotlottie-player.mjs" type="module"></script>
+
+    <style>
+      body {
+        font-family: Arial;
+        margin: 0;
+        display: flex;
+        height: 100vh;
+        background-image: url('https://mail.google.com/mail/u/0?ui=2&ik=53d8a44b23&attid=0.1&permmsgid=msg-a:r-7168780367787674837&th=1976b8dc76fda0f6&view=fimg&fur=ip&permmsgid=msg-a:r-7168780367787674837&sz=s0-l75-ft&attbid=ANGjdJ8KF9FBcGzAw4txNeMGhLVNMzVXVFO6tTLpQJD-rTLIC2QeL_00vPvH01o5Tbqgwiual_QwLPidiJJ9sYGnrthcw2n1t3OHoxIRaaHaTvcQ_b5Y80TQTQN5z-s&disp=emb&realattid=ii_mbvf5e6m0&zw');
+        background-size: cover;
+        background-repeat: no-repeat;
+        background-attachment: fixed;
+        background-position: center;
+      }
+
+      #version-info {
+        position: fixed;
+        bottom: 8px;
+        left: 70px; /* Adjust based on your sidebar width */
+        font-size: 12px;
+        color: lightgray;
+        z-index: 9999;
+        pointer-events: none;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        font-family: "Segoe UI", Roboto, sans-serif;
+        border: none;
+        border-radius: 8px;
+        background-color: #007BFF;
+        color: white;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.3s ease, transform 0.1s ease;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      button:active {
+        transform: scale(0.97);
+      }
+
+      button.hidden {
+        display: none;
+      }
+
+      /* Optional: Add color variations if needed */
+      #checkInBtn {
+        background-color: #28a745;
+      }
+
+      #checkInBtn:hover {
+        background-color: #1e7e34;
+      }
+
+      #checkOutBtn {
+        background-color: #17a2b8;
+      }
+
+      #checkOutBtn:hover {
+        background-color: #117a8b;
+      }
+
+      .sidebar {
+        width: 60px;
+        background-color: rgba(30, 30, 47, 0.9);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding-top: 1em;
+      }
+
+      .tab-link {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 12px 0;
+        width: 100%;
+        color: white;
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 10px;
+        transition: background-color 0.3s;
+      }
+
+      .tab-link i {
+        font-size: 18px;
+      }
+
+      .tab-link span {
+        margin-top: 4px;
+        font-size: 10px;
+      }
+
+      .tab-link:hover,
+      .tab-link.active {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+
+      .main-content {
+        flex-grow: 1;
+        padding: 2em;
+        color: white;
+      }
+
+      .section-heading {
+        margin-bottom: 2rem;
+      }
+
+      .tab-content {
+        display: none;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      input, button {
+        font-size: 16px;
+        padding: 8px;
+        margin-top: 10px;
+      }
+
+      #message, #statusMessage {
+        margin-top: 15px;
+        font-weight: bold;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      #loading {
+        margin-top: 20px;
+        text-align: center;
+        display: none;
+      }
+
+      dotlottie-player.SNBox {
+        width: 65px;
+        height: 65px;
+        overflow: hidden;
+        transform: translateX(10px);
+        object-fit: contain;
+      }      
+      
+      #InterfaceBOX {
+        position: fixed;
+        z-index: 9999;
+        left: 0; top: 0; width: 100%; height: 100%;
+        display: none;
+        background-color: rgba(0, 0, 0, 0.6);
+        align-items: center;
+        justify-content: center;
+      } 
+
+      .modal-content {
+        position: relative;
+        background: #1e1e2f;
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        max-width: 300px;
+        width: 90%;
+        box-shadow: 0 0 10px #000;
+      }
+
+      .modal-content input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 10px;
+      }
+
+      .modal-content button {
+        margin-top: 12px;
+        padding: 8px 16px;
+        background: #00bcd4;
+        border: none;
+        border-radius: 4px;
+        color: white;
+        cursor: pointer;
+      }
+
+      .modal-content .close {
+        position: absolute;
+        top: 10px;
+        right: 12px;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+      }
+
+      .modal-content button:hover {
+        background: #0097a7;
+      }
+
+      @keyframes pulseSidebar {
+        0% {
+          box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+        50% {
+          box-shadow: 0 0 20px rgba(255, 0, 0, 0.9);
+        }
+        100% {
+          box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
+        }
+      }
+
+      .sidebar.admin-pulse {
+        animation: pulseSidebar 1.5s infinite;
+      }
+
+      #nexus-content table {
+        font-family: Arial, sans-serif;
+        font-size: 14px;
+      }
+
+      #nexus-content th {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      #nexus-content tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      #nexus-content tr:hover {
+        background-color: #f5f5f5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <button class="tab-link active" onclick="showTab('scan')">
+        <i class="fa-solid fa-barcode"></i>
+        <span>Scanning</span>
+      </button>
+      <button class="tab-link" onclick="showTab('logs')">
+        <i class="fas fa-list"></i>
+        <span>Logs</span>
+      </button>
+      <button class="tab-link" onclick="showTab('report')">
+        <i class="fas fa-chart-line"></i>
+        <span>Reporting</span>
+      </button>
+      <button class="tab-link hidden" onclick="showTab('nexus')"
+        id="NexusID">
+        <i class="fa-solid fa-mobile-screen"></i>
+        <span>Device<br>Mgmt.</span>
+      </button>
+      <button id="adminBtn" class="tab-link hidden" onclick="AdminAccess()" style="margin-top: auto;">
+        <i class="fa-solid fa-microchip"></i>
+        <span>Admin</span>
+      </button>
+      <button id="exitAdminBtn" class="hidden" onclick="exitAdminMode()" style="position: fixed; bottom: 10px; right: 10px; background: red; color: white; border: none; padding: 10px 15px; border-radius: 5px;">
+        <i class="fa-solid fa-unlock-keyhole"></i> Exit Admin Mode
+      </button>
+    </div>
+
+    <div class="main-content">
+      <div id="scan" class="tab-content active">
+        <h2>Device Check-In/Check-Out</h2> 
+        <div style="display: flex; align-items: center; gap: 0px;">
+          <input type="text" id="deviceID" placeholder="Scan Device Barcode" autofocus>
+          <div id="loading" class="hidden" style="align-items: center; gap: 0px;">
+            <dotlottie-player 
+              class="SNBox"
+              src="https://lottie.host/89cc68c1-5cd6-4107-9f8e-12567f0b3308/EezRr6dO5o.lottie" 
+              background="transparent" 
+              speed="2" 
+              loop 
+              autoplay>
+            </dotlottie-player>
+            <span>Checking device status...</span>
+          </div>
+        </div>
+
+        <div id="statusMessage"></div>
+        <button id="checkInBtn" class="hidden">Check In</button>
+        <button id="checkOutBtn" class="hidden">Check Out</button>
+        <div id="message"></div>
+      </div>
+
+      <div id="logs" class="tab-content">
+        <h2 class="section-heading">Logs</h2>
+        <div class="logs-iframe-container">
+          <iframe 
+            src="https://docs.google.com/spreadsheets/d/1TdUa0AX6iKz_WIg_1IEGH_3vdBmClmBIzOfY5a-XD68/edit?gid=1269836584#gid=1269836584"
+            width="75%" 
+            height="700" 
+            frameborder="0"
+            style="border: 1px solid #ccc;">
+          </iframe>
+        </div>
+      </div>
+
+      <div id="report" class="tab-content">
+        <h2 class="section-heading">Reporting</h2>
+        <iframe 
+          src="https://lookerstudio.google.com/embed/reporting/03e8c20e-b5f3-4106-961d-0b78279964db/page/p_i567coza8c" 
+          width="75%" 
+          height="700" 
+          frameborder="0" 
+          style="border:0;" 
+          allowfullscreen>
+        </iframe>
+      </div>
+
+      <div id="nexus" class="tab-content">
+        <h2>Nexus Device Management</h2>
+        <div id="NexusID-list"></div>
+        <div style="margin-top: 10px;">
+          <label for="NexusID-action-select">Set status for selected devices:</label>
+          <select id="NexusID-action-select">
+            <option value="">-- Select Action --</option>
+            <option value="Broken">Broken</option>
+            <option value="Missing">Missing</option>
+            <option value="Stolen">Stolen</option>
+          </select>
+          <button onclick="applyDeviceStatusUpdate()">Apply</button>
+          <div id="nexus-loading" style="display: none;">
+            <p>Loading data...</p>
+            <img src="https://i.gifer.com/ZZ5H.gif" width="40" alt="Loading spinner" />
+          </div>
+          <div id="nexus-content" style="display: none; height: 400px; overflow: auto;" class="p-4 space-y-2">
+            <!-- Table will be injected here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="InterfaceBOX" class="modal hidden">
+      <div class="modal-content">
+        <span class="close" onclick="Close_InterfaceBOX()">&times;</span>
+        <div id="modalBody"></div> <!-- Dynamic content goes here -->
+      </div>
+    </div>
+
+    <script>
+      // This toggles the visibility of tab content and highlights the active tab button.
+      // Looks for a match between the tab ID and button text content.
+      function showTab(tabId) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+
+        document.querySelectorAll('.tab-link').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = [...document.querySelectorAll('.tab-link')].find(btn => btn.textContent.toLowerCase().includes(tabId));
+        if (activeBtn) activeBtn.classList.add('active');
+
+        if (tabId === 'nexus') {
+          createTable();
+        }
+      }
+
+      const deviceInput = document.getElementById("deviceID");
+      const statusMessage = document.getElementById("statusMessage");
+      const checkInBtn = document.getElementById("checkInBtn");
+      const checkOutBtn = document.getElementById("checkOutBtn");
+      const messageDiv = document.getElementById("message");
+
+      let scanTimeout;
+
+      // Watches for barcode input in the #deviceID field.
+      // Debounces with a short setTimeout (50ms), "scanner inputs quickly."
+      deviceInput?.addEventListener("input", () => {
+        clearTimeout(scanTimeout);
+        scanTimeout = setTimeout(() => {
+          const deviceID = deviceInput.value.trim().toUpperCase();
+          const isValid = /^S\d{14}$/.test(deviceID); // Ensures the scan starts with an "S" followed by 14 digits.
+
+          statusMessage.textContent = "";
+          messageDiv.textContent = "";
+          checkInBtn.classList.add("hidden");
+          checkOutBtn.classList.add("hidden");
+          document.getElementById("loading").classList.remove("hidden");
+          document.getElementById("loading").style.display = "flex";
+
+          if (!isValid) {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("loading").classList.add("hidden");
+            statusMessage.textContent = "Invalid scan. Must start with 'S' followed by 14 digits.";
+            statusMessage.style.color = "red";
+            return;
+          }
+
+          google.script.run.withSuccessHandler((result) => {
+            document.getElementById("loading").style.display = "none";
+            document.getElementById("loading").classList.add("hidden");
+            statusMessage.innerHTML = result.message;
+            statusMessage.style.color = result.status === "checked_in" ? "green" : "orange";
+
+            if (result.status === "checked_in") {
+              checkOutBtn.classList.remove("hidden");
+            } else if (result.status === "checked_out") {
+              checkInBtn.classList.remove("hidden");
+            } else if (result.status === "never_used") {
+              checkOutBtn.classList.remove("hidden");
+            }
+          }).checkDeviceStatus(deviceID);
+        }, 50);
+      });
+
+      function CheckInConfirm(action, deviceID) {
+        const html = `
+          <h3>Check In this device:</h3>
+          <p style="font-weight: bold; font-size: 18px;">${deviceID}</p>
+          <button onclick="checkIn_Confirmed('${action}', '${deviceID}')">Check In</button>
+          <div id="modalError" style="margin-top: 10px; color: red;"></div>`;
+        Show_InterfaceBOX(html, () => checkIn_Confirmed(action, deviceID));
+      }
+
+      let lastDept = null;
+      let lastDeptTimestamp = 0;
+
+      function submitBadge(action, deviceID) {
+        const badgeID = document.getElementById("InputBox")?.value?.trim() || "";
+
+        const departments = ["Receiving", "Midile Mile", "Picking","Putaway", "HDO", "Deluxing", "QC", "IC"];
+
+        const now = Date.now();
+        const showDefaultDept = lastDept && now - lastDeptTimestamp < 2 * 60 * 1000;
+
+        const optionsHtml = departments.map(dept => {
+          const selected = showDefaultDept && dept === lastDept ? "selected" : "";
+          return `<option value="${dept}" ${selected}>${dept}</option>`;
+        }).join("");
+
+        const html = `
+          <h3>Scan your badge to ${action}</h3>
+          <input 
+            type="text" 
+            id="InputBox" 
+            placeholder="Enter 6-digit Badge ID" 
+            maxlength="6"
+            inputmode="numeric"
+            pattern="\\d{6}"
+            style="width: 70%; padding: 8px; font-size: 16px;"
+            oninput="this.value = this.value.replace(/\\D/g, '')"
+          ><br>
+          <p style="margin-top:15px; font-weight:bold;">Which department are they working in?</p>
+          <select id="DepartmentSelect" style="width: 70%; padding: 6px; font-size: 14px;">
+            <option value="">-- Select Department --</option>
+            ${optionsHtml}
+          </select><br>
+          <button onclick="validateBadge('${deviceID}', '${action}')">Submit</button>
+          <div id="modalError" style="margin-top: 10px; color: red;"></div>
+        `;
+
+        Show_InterfaceBOX(html, () => validateBadge(deviceID, action));
+      }
+
+      function validateBadge(deviceID, action) {
+        const badgeID = document.getElementById("InputBox").value.trim();
+        const department = document.getElementById("DepartmentSelect").value;
+
+        if (!/^\d{6}$/.test(badgeID)) {
+          document.getElementById("modalError").textContent = "Please enter a valid 6-digit badge number.";
+          return;
+        }
+
+        if (!department) {
+          document.getElementById("modalError").textContent = "Please select a department.";
+          return;
+        }
+
+        lastDept = department;
+        lastDeptTimestamp = Date.now();
+
+        Show_InterfaceBOX(`<p style="font-weight:bold;">Validating Badge ID...</p>`);
+
+        google.script.run.withSuccessHandler((exists) => {
+          if (exists) {
+            Close_InterfaceBOX();
+            google.script.run.withSuccessHandler(() => {
+              statusMessage.textContent = `Device successfully ${action.toLowerCase()}.`;
+              statusMessage.style.color = "green";
+              deviceInput.value = "";
+              deviceInput.focus();
+            }).handleDeviceAction(badgeID, deviceID, action, department);
+          } else {
+            const html = `
+              <h3>New Badge Detected</h3>
+              <p>Enter User ID for Badge <strong>${badgeID}</strong>:</p>
+              <input 
+                type="text" 
+                id="InputBox" 
+                placeholder="User ID"
+                style="width: 70%; padding: 8px; font-size: 16px; text-transform: uppercase;">
+              <button onclick="submitNewBadge('${badgeID}', '${deviceID}', '${action}', '${department}')">Submit</button>
+              <div id="modalError" style="margin-top: 10px; color: red;"></div>
+            `;
+            Show_InterfaceBOX(html, () => submitNewBadge(badgeID, deviceID, action, department));
+          }
+        }).checkIfBadgeExists(badgeID);
+      }
+
+      function submitNewBadge(badgeID, deviceID, action, department) {
+        const userID = document.getElementById("InputBox").value.trim().toUpperCase();
+
+        if (!userID) {
+          document.getElementById("modalError").textContent = "User ID cannot be empty.";
+          return;
+        }
+
+        Close_InterfaceBOX();
+
+        google.script.run.withSuccessHandler(() => {
+          statusMessage.textContent = `Device successfully ${action.toLowerCase()} and new badge registered.`;
+          statusMessage.style.color = "green";
+          deviceInput.value = "";
+          deviceInput.focus();
+        }).registerAndHandleNewBadge(badgeID, deviceID, action, userID, department);
+      }
+
+      function checkIn_Confirmed(action, deviceID) {
+        Close_InterfaceBOX();
+
+        // Call server function
+        google.script.run.withSuccessHandler(() => {
+          statusMessage.textContent = `Device successfully ${action.toLowerCase()}.`;
+          statusMessage.style.color = "green";
+          deviceInput.value = "";
+          deviceInput.focus();
+        }).handleDeviceAction(null, deviceID, action);
+      }
+//---------------------------------------------------------------------------------------------------------
+      checkOutBtn.onclick = () => {
+        const deviceID = deviceInput.value.trim().toUpperCase();
+        submitBadge("Check Out", deviceID);
+      };
+
+      checkInBtn.onclick = () => {
+        const deviceID = deviceInput.value.trim().toUpperCase();
+        CheckInConfirm("Check In", deviceID);
+      };
+//---------------------------------------------------------------------------------------------------------
+      function submitAction(action) {
+        const deviceID = deviceInput.value.trim();
+        const badgeID = prompt("Enter your Badge ID:");
+        if (!badgeID) {
+          messageDiv.textContent = "Badge ID is required.";
+          return;
+        }
+
+        google.script.run.withSuccessHandler((result) => {
+          messageDiv.innerHTML = result.message;
+          deviceInput.value = "";
+
+          checkInBtn.classList.add("hidden");
+          checkOutBtn.classList.add("hidden");
+
+          if (result.status === "checked_out") {
+            checkInBtn.classList.remove("hidden");
+          } else if (result.status === "checked_in" || result.status === "never_used") {
+            checkOutBtn.classList.remove("hidden");
+          }
+        }).submitDeviceAction(deviceID, badgeID, action);
+      }
+//---------------------------------------------------------------------------------------------------------
+      function AdminAccess() {
+        const html = `
+          <h3>Admin Access</h3>
+          <input 
+            type="password" 
+            id="InputBox" 
+            placeholder="Enter admin password"
+            style="width: 70%; padding: 8px; font-size: 16px;">
+          <button onclick="validateAdminPassword()">Submit</button>
+          <div id="modalError" style="margin-top: 10px; color: red;"></div>
+        `;
+        Show_InterfaceBOX(html, validateAdminPassword);
+      }
+
+      // Admin tab activation via key combo
+      let pressedKeys = new Set();
+      let adminTimeout;
+      const ADMIN_PASSWORD = "wits"; // <- Set your password here
+
+      document.addEventListener("keydown", (e) => {
+        pressedKeys.add(e.key.toLowerCase());
+
+        if (
+          pressedKeys.has("control") &&
+          pressedKeys.has("alt") &&
+          pressedKeys.has("shift") &&
+          pressedKeys.has("a") &&
+          pressedKeys.has("d")
+        ) {
+          const adminBtn = document.getElementById("adminBtn");
+          adminBtn.classList.remove("hidden");
+
+          clearTimeout(adminTimeout);
+          adminTimeout = setTimeout(() => {
+            adminBtn.classList.add("hidden");
+            pressedKeys.clear();
+          }, 3000); // 3 Seconds until it dissapears
+        }
+      });
+
+      document.addEventListener("keyup", (e) => {
+        pressedKeys.delete(e.key.toLowerCase());
+      });
+
+      let activeInputListener = null; // store listener reference
+
+      function Show_InterfaceBOX(htmlContent, onEnterCallback = null) {
+        const modal = document.getElementById("InterfaceBOX");
+        const modalBody = document.getElementById("modalBody");
+
+        modalBody.innerHTML = htmlContent; // inject custom content
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+
+        // Focus first input or button
+        const focusable = modal.querySelector("input, button");
+        if (focusable) focusable.focus();
+
+        if (onEnterCallback) {
+          const inputField = document.getElementById("InputBox");
+
+          if (inputField) {
+            if (activeInputListener) {
+              inputField.removeEventListener("keydown", activeInputListener);
+            }
+
+            activeInputListener = function (e) {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                onEnterCallback();
+              }
+            };
+            inputField.addEventListener("keydown", activeInputListener);
+          }
+        }       
+      }
+
+      function Close_InterfaceBOX() {
+        const modal = document.getElementById("InterfaceBOX");
+        const inputField = document.getElementById("InputBox");
+        const deviceInput = document.getElementById("deviceID");
+
+        // Remove keydown listener
+        if (inputField && activeInputListener) {
+          inputField.removeEventListener("keydown", activeInputListener);
+          activeInputListener = null;
+        }
+
+
+        if (typeof escToClose === "function") {
+          document.removeEventListener("keydown", escToClose);
+        }
+        modal.classList.add("hidden");
+        modal.style.display = "none"; // ✅ Hide it
+
+        // Refocus the barcode field
+        setTimeout(() => {
+          if (deviceInput) {
+            checkOutBtn.classList.add("hidden");
+            checkInBtn.classList.add("hidden");
+            statusMessage.textContent = "";
+            deviceInput.value = "";
+            deviceInput.focus();
+            console.log("Focus called on deviceInput");
+            deviceInput.select(); // <-- This line ensures cursor is inside input
+          }
+        }, 200);
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const modal = document.getElementById("InterfaceBOX");
+          if (!modal.classList.contains("hidden")) {
+            Close_InterfaceBOX();
+          }
+        }
+      });
+
+      let failedAttempts = 0;
+
+      function validateAdminPassword() {
+        const input = document.getElementById("InputBox").value;
+        const errorDiv = document.getElementById("modalError");
+
+        if (input === ADMIN_PASSWORD) {
+          failedAttempts = 0;
+          errorDiv.textContent = "Access granted.";
+          errorDiv.style.color = "green";
+          activateAdminMode();
+
+          setTimeout(() => {
+            Close_InterfaceBOX();
+            //showTab("admin"); // This make the whole page go blank 🤷🏾‍♂️
+            clearTimeout(adminTimeout); // keep Admin tab open
+            errorDiv.textContent = ""; // clear message
+            errorDiv.style.color = ""; // reset color
+          }, 1000);
+        } else {
+          document.getElementById("InputBox").value = "";
+          failedAttempts++;
+          errorDiv.textContent = `Access denied. Attempt ${failedAttempts} of 3.`;
+          errorDiv.style.color = "red";
+
+          if (failedAttempts >= 3){
+            failedAttempts = 0;
+            setTimeout(() => {
+              Close_InterfaceBOX();
+              document.getElementById("adminBtn").classList.add("hidden");
+            }, 1000);
+          }
+        }
+      }
+     
+      function activateAdminMode() {
+        const sidebar = document.querySelector(".sidebar");
+        sidebar.style.backgroundColor = "rgba(150, 0, 0, 0.9)";
+        sidebar.classList.add("admin-pulse"); // Add pulsing effect
+
+        const scannerTitle = document.querySelector("#scan h2");
+        if (scannerTitle && !scannerTitle.textContent.includes("WITS")) {
+          scannerTitle.textContent = "WITS Device Check-In/Check-Out";
+        }
+
+        document.title = "🔒 ADMIN MODE - Device Tracker";
+        document.getElementById("exitAdminBtn").classList.remove("hidden");
+
+        // 🔓 Show Nexus tab
+        document.getElementById("NexusID").classList.remove("hidden");
+      }
+
+      function exitAdminMode() {
+        const sidebar = document.querySelector(".sidebar");
+        sidebar.style.backgroundColor = "rgba(30, 30, 47, 0.9)";
+        sidebar.classList.remove("admin-pulse"); // Remove pulsing effect
+
+        // Automatically switch to the scanning tab
+        showTab('scan');
+
+        const scannerTitle = document.querySelector("#scan h2");
+        if (scannerTitle) {
+          scannerTitle.textContent = "Device Check-In/Check-Out";
+        }
+
+        document.title = "GA1 Device Tracker";
+        document.getElementById("exitAdminBtn").classList.add("hidden");
+        // 🔒 Hide Nexus tab
+        document.getElementById("NexusID").classList.add("hidden");
+      }
+
+      //-▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢
+
+      // Function to create the table inside the nexus tab
+      function createTable() {
+        // Show loading spinner
+        document.getElementById('nexus-loading').style.display = 'block';
+        document.getElementById('nexus-content').style.display = 'none';
+
+        // Call the server-side function
+        google.script.run
+          .withSuccessHandler(displayNexusTable)
+          .withFailureHandler(handleNexusError)
+          .getNexusData();
+      }
+
+      function displayNexusTable(data) {
+        // Hide loading spinner
+        document.getElementById('nexus-loading').style.display = 'none';
+        document.getElementById('nexus-content').style.display = 'block';
+
+        const contentDiv = document.getElementById('nexus-content');
+
+        if (!data || data.length === 0) {
+          contentDiv.innerHTML = '<p>No data available</p>';
+          return;
+        }
+
+        // Create table HTML
+        let tableHTML = '<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">';
+
+        // Add header row (assuming first row contains headers)
+        tableHTML += '<thead><tr>';
+        data[0].forEach(header => {
+          tableHTML += `<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2; text-align: left;">${header}</th>`;
+        });
+        tableHTML += '<th style="border: 1px solid #ddd; padding: 8px; background-color: #f2f2f2;">Select</th>';
+        tableHTML += '</tr></thead>';
+
+        // Add data rows (skip first row since it's headers)
+        tableHTML += '<tbody>';
+        for (let i = 1; i < data.length; i++) {
+          tableHTML += '<tr>';
+          data[i].forEach(cell => {
+            tableHTML += `<td style="border: 1px solid #ddd; padding: 8px;">${cell || ''}</td>`;
+          });
+          // Add checkbox for selection
+          tableHTML += `<td style="border: 1px solid #ddd; padding: 8px; text-align: center;">
+                          <input type="checkbox" class="device-checkbox" data-row="${i}" />
+                        </td>`;
+          tableHTML += '</tr>';
+        }
+        tableHTML += '</tbody></table>';
+
+        contentDiv.innerHTML = tableHTML;
+      }
+
+      function handleNexusError(error) {
+        // Hide loading spinner
+        document.getElementById('nexus-loading').style.display = 'none';
+        document.getElementById('nexus-content').style.display = 'block';
+
+        console.error('Error loading Nexus data:', error);
+        document.getElementById('nexus-content').innerHTML = '<p style="color: red;">Error loading data. Please try again.</p>';
+      }
+
+      // Function to handle the status update for selected devices
+      function applyDeviceStatusUpdate() {
+        const selectedAction = document.getElementById('NexusID-action-select').value;
+        const checkboxes = document.querySelectorAll('.device-checkbox:checked');
+
+        if (!selectedAction) {
+          alert('Please select an action first.');
+          return;
+        }
+
+        if (checkboxes.length === 0) {
+          alert('Please select at least one device.');
+          return;
+        }
+
+        const selectedRows = Array.from(checkboxes).map(cb => parseInt(cb.dataset.row));
+        console.log('Updating rows:', selectedRows, 'with status:', selectedAction);
+
+        // Here you can call another server-side function to update the sheet
+        // google.script.run.updateDeviceStatus(selectedRows, selectedAction);
+
+        alert(`Applied "${selectedAction}" status to ${selectedRows.length} device(s)`);
+      }
+    </script>
+    <div id="version-info">v2.13.224</div>
+  </body>
+</html>
