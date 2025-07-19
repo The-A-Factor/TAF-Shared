@@ -332,15 +332,17 @@
           </div>
 
           <div>
-            <label for="status-filter" style="color: white; margin-right: 5px;">Filter by Status:</label>
-            <select id="status-filter" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-              <option value="">All Statuses</option>
-              <option value="Available">Available</option>
-              <option value="Checked Out">Checked Out</option>
-              <option value="Broken">Broken</option>
+            <label for="state-filter" style="color: white; margin-right: 5px;">Filter by State:</label>
+            <select id="state-filter" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
+              <option value="">All States</option>
+              <option value="On order">On order</option>
+              <option value="In Stock">In Stock</option>
+              <option value="In Transit">In Transit</option>
+              <option value="In Use">In Use</option>
+              <option value="Consumed">Consumed</option>
+              <option value="In Maintenance">In Maintenance</option>
+              <option value="Retired">Retired</option>
               <option value="Missing">Missing</option>
-              <option value="Stolen">Stolen</option>
-              <option value="Never Used">Never Used</option>
             </select>
           </div>
 
@@ -368,11 +370,15 @@
               Clear Selection
             </button>
             <select id="bulk-status-select" style="padding: 5px; border-radius: 4px; border: 1px solid #ccc;">
-              <option value="">-- Select Status --</option>
-              <option value="Available">Available</option>
-              <option value="Broken">Broken</option>
+              <option value="">-- Select State --</option>
+              <option value="On order">On order</option>
+              <option value="In Stock">In Stock</option>
+              <option value="In Transit">In Transit</option>
+              <option value="In Use">In Use</option>
+              <option value="Consumed">Consumed</option>
+              <option value="In Maintenance">In Maintenance</option>
+              <option value="Retired">Retired</option>
               <option value="Missing">Missing</option>
-              <option value="Stolen">Stolen</option>
             </select>
             <button onclick="applyBulkStatusUpdate()" style="padding: 5px 10px; border-radius: 4px; border: none; background: #dc3545; color: white; cursor: pointer;">
               Apply to Selected
@@ -865,12 +871,13 @@
                     <input type="checkbox" id="select-all" onchange="toggleSelectAll(this)">
                     Device ID
                   </th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">State</th>
                   <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">Status</th>
                   <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 120px;">Last User</th>
                   <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 140px;">Last Action</th>
                   <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">Department</th>
                   <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 100px;">Duration</th>
-                  <th style="border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px;">Actions</th>
+                  <th style="border: 1px solid #ddd; padding: 8px; text-align: center; min-width: 80px;">History</th>
                 </tr>
               </thead>
               <tbody>
@@ -880,19 +887,23 @@
         for (let i = 1; i < filteredData.length; i++) {
           const row = filteredData[i];
           const deviceID = row[0];
-          const status = row[1];
-          const lastUser = row[2];
-          const lastAction = row[3];
-          const department = row[4];
-          const duration = row[5];
+          const state = row[1];
+          const status = row[2];
+          const lastUser = row[3];
+          const lastAction = row[4];
+          const department = row[5];
+          const duration = row[6];
 
           // Color code based on status
-          let statusColor = '#28a745'; // Green for Available
-          if (status === 'Checked Out') statusColor = '#ffc107'; // Yellow
-          else if (status === 'Broken') statusColor = '#dc3545'; // Red
-          else if (status === 'Missing') statusColor = '#6f42c1'; // Purple
-          else if (status === 'Stolen') statusColor = '#fd7e14'; // Orange
-          else if (status === 'Never Used') statusColor = '#6c757d'; // Gray
+          let stateColor = '#28a745'; // Green for In Use
+          if (state === 'In Stock') stateColor = '#6f42c1'; // Purple
+          else if (state === 'Missing') stateColor = '#dc3545'; // Red
+          else if (state === 'Consumed') stateColor = '#fd7e14'; // Orange
+          else if (state === 'Retired') stateColor = '#000000'; // Black
+          else if (state === 'On order') stateColor = '#6c757d'; // Gray
+          else if (state === 'In Transit') stateColor = '#6c757d'; // Gray
+          else if (state === 'In Maintenance') stateColor = '#6c757d'; // Gray
+          
 
           tableHTML += `
             <tr class="device-row" data-device-id="${deviceID}">
@@ -901,10 +912,11 @@
                 <strong>${deviceID}</strong>
               </td>
               <td style="border: 1px solid #ddd; padding: 8px;">
-                <span style="padding: 3px 8px; border-radius: 12px; font-size: 12px; color: white; background: ${statusColor};">
-                  ${status}
+                <span style="padding: 3px 8px; border-radius: 12px; font-size: 12px; color: white; background: ${stateColor};">
+                  ${state}
                 </span>
               </td>
+              <td style="border: 1px solid #ddd; padding: 8px;">${status}</td>
               <td style="border: 1px solid #ddd; padding: 8px;">${lastUser}</td>
               <td style="border: 1px solid #ddd; padding: 8px;">${lastAction}</td>
               <td style="border: 1px solid #ddd; padding: 8px;">${department}</td>
@@ -934,26 +946,26 @@
 
       function setupSearchAndFilter() {
         const searchInput = document.getElementById('device-search');
-        const statusFilter = document.getElementById('status-filter');
+        const stateFilter = document.getElementById('state-filter');
 
         searchInput.addEventListener('input', applyFilters);
-        statusFilter.addEventListener('change', applyFilters);
+        stateFilter.addEventListener('change', applyFilters);
       }
 
       function applyFilters() {
         const searchTerm = document.getElementById('device-search').value.toLowerCase();
-        const statusFilter = document.getElementById('status-filter').value;
+        const stateFilter = document.getElementById('state-filter').value;
 
         const rows = document.querySelectorAll('.device-row');
         let visibleCount = 0;
 
         rows.forEach(row => {
           const deviceID = row.dataset.deviceId.toLowerCase();
-          const status = row.querySelector('td:nth-child(2) span').textContent.trim();
-          const lastUser = row.querySelector('td:nth-child(3)').textContent.toLowerCase();
+          const state = row.querySelector('td:nth-child(2) span').textContent.trim();
+          const lastUser = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
 
           const matchesSearch = deviceID.includes(searchTerm) || lastUser.includes(searchTerm);
-          const matchesStatus = !statusFilter || status === statusFilter;
+          const matchesStatus = !stateFilter || state === stateFilter;
 
           if (matchesSearch && matchesStatus) {
             row.style.display = '';
@@ -965,7 +977,7 @@
 
         // Update filtered count
         const filteredCountSpan = document.getElementById('filtered-count');
-        if (searchTerm || statusFilter) {
+        if (searchTerm || stateFilter) {
           filteredCountSpan.textContent = `Showing: ${visibleCount}`;
           filteredCountSpan.style.display = 'inline';
         } else {
@@ -1022,7 +1034,7 @@
         const checkedBoxes = document.querySelectorAll('.device-checkbox:checked');
 
         if (!selectedStatus) {
-          alert('Please select a status to apply.');
+          alert('Please select a state to apply.');
           return;
         }
 
@@ -1067,7 +1079,7 @@
         const html = `
           <h3>Device History: ${deviceID}</h3>
           <div style="text-align: center;">
-            <p>Loading device history...</p>
+            <span>Loading history...</span>
             <dotlottie-player 
               class="SNBox"
               src="https://lottie.host/89cc68c1-5cd6-4107-9f8e-12567f0b3308/EezRr6dO5o.lottie" 
@@ -1149,6 +1161,6 @@
       }
 
     </script>
-    <div id="version-info">v2.13.232</div>
+    <div id="version-info">v2.13.248</div>
   </body>
 </html>

@@ -33,7 +33,7 @@ function checkDeviceStatus(deviceID) {
       // If device state is not "In Stock" or "In Use", prevent checkout
       if (deviceState !== "In Stock" && deviceState !== "In Use") {
         return {
-          status: "restricted",
+          status: "restricted", // THis will most likely need to be fixed on the HTML side
           message: "🚫 Please bring this device to your WITS department",
           deviceState: deviceState
         };
@@ -116,7 +116,7 @@ function handleDeviceAction(badgeID, deviceID, action, department) {
   const inTimestampIndex = headers.indexOf("Check-In Timestamp");
   const statusIndex = headers.indexOf("Status");
   const usageDurationIndex = headers.indexOf("Usage Duration"); // New
-  const deviceStateIndex = headers.indexOf("Device State"); // New
+  const deviceStateIndex = headers.indexOf("Device State");
 
   //for (let i = data.length - 1; i > 0; i--) { // Checks logs from ▽ to △
   for (let i = 1; i < data.length; i++) { // Checks logs from △ to ▽
@@ -170,13 +170,11 @@ function handleDeviceAction(badgeID, deviceID, action, department) {
     sheet.getRange(targetRow, 5, 1, 1).setValue("Yes"); // Checked Out?
     sheet.getRange(targetRow, 6, 1, 1).setValue(now); // Check-Out Timestamp
     sheet.getRange(targetRow, 9, 1, 1).setValue("Out"); // Status
+    sheet.getRange(targetRow, 11, 1, 1).setValue("In Use"); // Status
     sheet.getRange(targetRow, outTimestampIndex + 1).setNumberFormat("M/d/yyyy h:mm:ss AM/PM");
 
     // Set "Pending..." in Usage Duration column
     sheet.getRange(targetRow, usageDurationIndex + 1).setValue("Pending...");
-
-    // Set Device State to "In Use" by default for new devices
-    sheet.getRange(targetRow, deviceStateIndex + 1).setValue("In Use");
 
     // Set data validation for the "Department" column
     const departmentOptions = ["Receiving", "Midile Mile", "Picking", "Putaway", "HDO", "Deluxing", "QC", "IC"]; // EDropdown Options
@@ -193,6 +191,7 @@ function handleDeviceAction(badgeID, deviceID, action, department) {
       .requireValueInList(deviceStateOptions, true)
       .build();
     deviceStateRange.setDataValidation(deviceStateValidation);
+
 
     // Apply the dynamic formula for new rows in column B
     const formula = `=IFERROR(IF(ISBLANK(A${targetRow}),"",VLOOKUP(A${targetRow},BQ_Badge,2,false)),"New Badge...")`;
@@ -211,129 +210,181 @@ function getUniqueDevicesFromLog() {
 
 //-▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢▢
 
+/* This will pull the latest log entry per device from the “Log” sheet and return key fields like device ID, badge ID, name, department, status, and timestamps. */
+// Add these functions to your webapp2.js file
+
 function getNexusData() {
   try {
     const sheet = ss.getSheetByName("Log");
     const data = sheet.getDataRange().getValues();
     
-    if (data.length === 0) {
-      return [];
+    if (data.length <= 1) {
+      return [['Device ID', 'Current Status', 'Last User', 'Last Action Date', 'Department', 'Usage Duration']];
     }
     
     const headers = data[0];
     const deviceIndex = headers.indexOf("Device ID");
-    const deviceStateIndex = headers.indexOf("Device State");
+    const nameIndex = headers.indexOf("Name");
+    const departmentIndex = headers.indexOf("Department");
     const checkedOutIndex = headers.indexOf("Checked Out?");
     const checkedInIndex = headers.indexOf("Checked In?");
-    const nameIndex = headers.indexOf("Name");
     const outTimestampIndex = headers.indexOf("Check-Out Timestamp");
+    const inTimestampIndex = headers.indexOf("Check-In Timestamp");
+    const deviceStateIndex = headers.indexOf("Device State");
+    const statusIndex = headers.indexOf("Status");
+    const usageDurationIndex = headers.indexOf("Usage Duration");
     
-    // Get unique devices and their latest states
+    // Get unique devices and their latest status
     const deviceMap = new Map();
     
-    // Process from top to bottom (latest entries first since new entries are added at top)
+    // Process from newest to oldest (assuming newer entries are at the top)
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
       const deviceID = row[deviceIndex];
       
-      if (deviceID && !deviceMap.has(deviceID)) {
+      if (!deviceID) continue;
+      
+      // If we haven't seen this device yet, record its latest status
+      if (!deviceMap.has(deviceID)) {
         const deviceState = row[deviceStateIndex] || "In Use"; // Default to "In Use" if empty
         const checkedOut = row[checkedOutIndex];
         const checkedIn = row[checkedInIndex];
-        const name = row[nameIndex] || "";
-        const outTime = row[outTimestampIndex] || "";
+        const name = row[nameIndex] || "Unknown";
+        const department = row[departmentIndex] || "Unknown";
+        const outTimestamp = row[outTimestampIndex];
+        const inTimestamp = row[inTimestampIndex];
+        const usageDuration = row[usageDurationIndex] || "";
         
-        // Determine overall status for display
-        let displayStatus = deviceState;
-        let currentUser = "";
+        let currentStatus = "In Use";
+        let lastActionDate = "";
         
-        // If device is currently checked out, show additional info
-        if (checkedOut === "Yes" && (!checkedIn || checkedIn === "")) {
-          currentUser = name;
-          displayStatus = `${deviceState} (Out to: ${name})`;
+        if (checkedOut === "Yes" && checkedIn === "Yes") {
+          currentStatus = "Available";
+          lastActionDate = inTimestamp ? 
+            Utilities.formatDate(new Date(inTimestamp), Session.getScriptTimeZone(), "M/d/yyyy h:mm a") : 
+            "Unknown";
+        } else if (checkedOut === "Yes" && (!checkedIn || checkedIn === "")) {
+          currentStatus = "Checked Out";
+          lastActionDate = outTimestamp ? 
+            Utilities.formatDate(new Date(outTimestamp), Session.getScriptTimeZone(), "M/d/yyyy h:mm a") : 
+            "Unknown";
         }
         
         deviceMap.set(deviceID, {
           deviceID: deviceID,
           deviceState: deviceState,
-          displayStatus: displayStatus,
-          currentUser: currentUser,
-          lastActivity: outTime
+          currentStatus: currentStatus,
+          lastUser: name,
+          lastActionDate: lastActionDate,
+          department: department,
+          usageDuration: usageDuration
         });
       }
     }
     
-    // Convert to array and sort by device ID
-    const devices = Array.from(deviceMap.values()).sort((a, b) => a.deviceID.localeCompare(b.deviceID));
+    // Convert to array format for the table
+    const result = [['Device ID', 'Current Status', 'Last User', 'Last Action Date', 'Department', 'Usage Duration']];
     
-    // Create table data with headers
-    const tableData = [
-      ["Device ID", "Device State", "Current Status", "Last Activity"]
-    ];
+    // Sort devices by ID
+    const sortedDevices = Array.from(deviceMap.values()).sort((a, b) => 
+      a.deviceID.localeCompare(b.deviceID)
+    );
     
-    // Add device rows
-    devices.forEach(device => {
-      const lastActivity = device.lastActivity ? 
-        Utilities.formatDate(new Date(device.lastActivity), Session.getScriptTimeZone(), "M/d/yyyy h:mm a") : 
-        "Never used";
-        
-      tableData.push([
+    sortedDevices.forEach(device => {
+      result.push([
         device.deviceID,
         device.deviceState,
-        device.displayStatus,
-        lastActivity
+        device.currentStatus,
+        device.lastUser,
+        device.lastActionDate,
+        device.department,
+        device.usageDuration
       ]);
     });
     
-    return tableData;
+    return result;
     
   } catch (error) {
     console.error('Error fetching Nexus data:', error);
-    return [["Error", "Could not load device data", "", ""]];
+    return [['Error', 'Failed to load data', '', '', '', '']];
   }
 }
 
-// Function to update device states in bulk (for step 3)
-function updateDeviceStates(deviceIDs, newState) {
+function updateDeviceStatus(deviceIDs, newState) {
+  try {
+    const sheet = ss.getSheetByName("Log");
+    const now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "M/d/yyyy h:mm:ss a");
+    
+    // For each device, add a new administrative entry
+    deviceIDs.forEach(deviceID => {
+      // Insert new row at row 2 (just below header)
+      sheet.insertRows(2, 1);
+      
+      // Add administrative entry
+      sheet.getRange(2, 1).setValue("ADMIN"); // Badge ID
+      sheet.getRange(2, 2).setValue("System Administrator"); // Name
+      sheet.getRange(2, 3).setValue(deviceID); // Device ID
+      sheet.getRange(2, 4).setValue("Admin"); // Department
+      sheet.getRange(2, 5).setValue("Yes"); // Checked Out?
+      sheet.getRange(2, 6).setValue(now); // Check-Out Timestamp
+      sheet.getRange(2, 7).setValue("Yes"); // Checked In?
+      sheet.getRange(2, 8).setValue(now); // Check-In Timestamp
+      sheet.getRange(2, 9).setValue("Incomplete"); // Status
+      sheet.getRange(2, 10).setValue("Admin Action"); // Usage Duration
+      sheet.getRange(2, 11).setValue(newState); // State
+      
+      
+      // Format timestamps
+      sheet.getRange(2, 6).setNumberFormat("M/d/yyyy h:mm:ss AM/PM");
+      sheet.getRange(2, 8).setNumberFormat("M/d/yyyy h:mm:ss AM/PM");
+    });
+    
+    return { success: true, message: `Updated ${deviceIDs.length} device(s) to ${newState}` };
+    
+  } catch (error) {
+    console.error('Error updating device status:', error);
+    return { success: false, message: 'Failed to update device status' };
+  }
+}
+
+function getDeviceDetails(deviceID) {
   try {
     const sheet = ss.getSheetByName("Log");
     const data = sheet.getDataRange().getValues();
     const headers = data[0];
     
     const deviceIndex = headers.indexOf("Device ID");
+    const nameIndex = headers.indexOf("Name");
+    const departmentIndex = headers.indexOf("Department");
+    const checkedOutIndex = headers.indexOf("Checked Out?");
+    const checkedInIndex = headers.indexOf("Checked In?");
+    const outTimestampIndex = headers.indexOf("Check-Out Timestamp");
+    const inTimestampIndex = headers.indexOf("Check-In Timestamp");
     const deviceStateIndex = headers.indexOf("Device State");
+    const statusIndex = headers.indexOf("Status");
     
-    if (deviceIndex === -1 || deviceStateIndex === -1) {
-      throw new Error("Required columns not found");
-    }
+    const deviceHistory = [];
     
-    let updatedCount = 0;
-    
-    // Update the latest entry for each device
-    const processedDevices = new Set();
-    
+    // Get all records for this device
     for (let i = 1; i < data.length; i++) {
       const row = data[i];
-      const deviceID = row[deviceIndex];
-      
-      if (deviceIDs.includes(deviceID) && !processedDevices.has(deviceID)) {
-        sheet.getRange(i + 1, deviceStateIndex + 1).setValue(newState);
-        processedDevices.add(deviceID);
-        updatedCount++;
+      if (row[deviceIndex] === deviceID) {
+        deviceHistory.push({
+          name: row[nameIndex] || "Unknown",
+          department: row[departmentIndex] || "Unknown",
+          checkedOut: row[checkedOutIndex],
+          checkedIn: row[checkedInIndex],
+          outTimestamp: row[outTimestampIndex],
+          inTimestamp: row[inTimestampIndex],
+          deviceState: row[deviceStateIndex],
+          status: row[statusIndex] || "Unknown"
+        });
       }
     }
-    
-    return {
-      success: true,
-      message: `Successfully updated ${updatedCount} device(s) to "${newState}"`,
-      updatedCount: updatedCount
-    };
+    return deviceHistory;
     
   } catch (error) {
-    console.error('Error updating device states:', error);
-    return {
-      success: false,
-      message: "Error updating device states: " + error.message
-    };
+    console.error('Error getting device details:', error);
+    return [];
   }
 }
