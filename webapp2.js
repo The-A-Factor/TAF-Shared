@@ -71,11 +71,23 @@ function checkDeviceStatus(deviceID) {
     message: "This device has not been logged yet. Check-out?"
     };
 }
-
+/*
 function checkIfBadgeExists(badgeID) {
   const sheet = ss.getSheetByName("BQ Associates");
   const data = sheet.getRange("C2:C" + sheet.getLastRow()).getValues().flat();
   return data.includes(badgeID);
+}
+*/
+function checkIfBadgeExists(badgeID) {
+  const sheet = ss.getSheetByName("BQ Associates");
+  
+  // Get all values in column C starting from row 2
+  const data = sheet.getRange("C2:C" + sheet.getLastRow()).getValues().flat();
+  
+  // Filter out empty/null/undefined values and then check
+  const validBadgeIDs = data.filter(value => value !== "" && value !== null && value !== undefined);
+  
+  return validBadgeIDs.includes(badgeID);
 }
 
 function registerAndHandleNewBadge(badgeID, deviceID, action, userID, department) {
